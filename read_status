@@ -1,0 +1,10 @@
+#!/usr/bin/env ruby
+require 'ruby-mpd'
+require 'socket'
+
+begin
+  s = UNIXSocket.new('/tmp/music.sock')
+  puts s.recvfrom(1024).first
+rescue
+  puts nil
+end

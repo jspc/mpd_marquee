@@ -1,0 +1,80 @@
+#!/usr/bin/env ruby
+require 'ruby-mpd'
+require 'socket'
+require 'fileutils'
+
+E_NO_MUSIC_STRING = 'No music playing'
+JUMP = 3
+WIDTH = 32
+
+def truncate(str, start, len=10)
+  return nil if str.nil?
+  str_pad = str.ljust(WIDTH*2 - JUMP, ' ').rjust(WIDTH*3 - JUMP, ' ')
+  return str_pad[start..(len - 1)]
+end
+
+def status_line
+  client = MPD.new
+
+  begin
+    client.connect
+  rescue Errno::ECONNREFUSED
+    return E_NO_MUSIC_STRING
+  rescue MPD::ConnectionError
+    return nil
+  end
+
+  song = client.current_song
+  return E_NO_MUSIC_STRING if song.nil?
+
+  song_string = "#{song.title} - #{song.artist}"
+  if client.paused?
+    status = "[PAUSED] #{song_string}"
+  elsif client.stopped?
+    status = "[STOPPED] #{song_string}"
+  elsif client.playing?
+    status = "[PLAYING] #{song_string}"
+  else
+    status = "[UNKNOWN] #{song_string}"
+  end
+
+  client.disconnect
+  return status
+end
+
+def looper
+  str = ''
+  begin
+    serv = UNIXServer.new('/tmp/music.sock')
+
+    loop do
+      str = status_line
+
+      s_idx = 0
+      e_idx = WIDTH
+
+      while str == status_line
+        s = serv.accept
+        truncated_string = truncate(str, s_idx, e_idx)
+        s.puts truncated_string
+
+        if e_idx < truncated_string.length + (WIDTH*2)
+          s_idx += JUMP
+          e_idx += JUMP
+        else
+          s_idx = 0
+          e_idx = WIDTH
+        end
+      end
+
+    end
+  rescue
+     sleep 1
+  ensure
+    FileUtils.rm '/tmp/music.sock'
+  end
+end
+
+loop do
+  looper
+end

@@ -1,0 +1,17 @@
+GEM
+  remote: https://rubygems.org/
+  specs:
+    fileutils (0.7)
+      rmagick (>= 2.13.1)
+    rmagick (2.15.2)
+    ruby-mpd (0.3.2)
+
+PLATFORMS
+  ruby
+
+DEPENDENCIES
+  fileutils
+  ruby-mpd
+
+BUNDLED WITH
+   1.10.5
