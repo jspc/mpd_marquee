@@ -7,9 +7,12 @@ E_NO_MUSIC_STRING = 'No music playing'
 JUMP = 3
 WIDTH = 32
 
+BUFFER = (WIDTH).times.map{' '}.join
+
 def truncate(str, start, len=10)
   return nil if str.nil?
-  str_pad = str.ljust(WIDTH*2 - JUMP, ' ').rjust(WIDTH*3 - JUMP, ' ')
+  str_pad = "#{BUFFER}#{str}#{BUFFER}"
+
   return str_pad[start..(len - 1)]
 end
 
@@ -18,27 +21,31 @@ def status_line
 
   begin
     client.connect
-  rescue Errno::ECONNREFUSED
-    return E_NO_MUSIC_STRING
-  rescue MPD::ConnectionError
-    return nil
+    song = client.current_song
+
+    if song.nil?
+      status = E_NO_MUSIC_STRING
+    else
+      song_string = "#{song.title} - #{song.artist}"
+      if client.paused?
+        status = "[PAUSED] #{song_string}"
+      elsif client.stopped?
+        status = "[STOPPED] #{song_string}"
+      elsif client.playing?
+        status = "[PLAYING] #{song_string}"
+      else
+        status = "[UNKNOWN] #{song_string}"
+      end
+    end
+    client.disconnect
+
+#  rescue Errno::ECONNREFUSED, MPD::ConnectionError => e
+#    puts e
+#    status = E_NO_MUSIC_STRING
+#  ensure
+#    client.disconnect if client.connected?
   end
 
-  song = client.current_song
-  return E_NO_MUSIC_STRING if song.nil?
-
-  song_string = "#{song.title} - #{song.artist}"
-  if client.paused?
-    status = "[PAUSED] #{song_string}"
-  elsif client.stopped?
-    status = "[STOPPED] #{song_string}"
-  elsif client.playing?
-    status = "[PLAYING] #{song_string}"
-  else
-    status = "[UNKNOWN] #{song_string}"
-  end
-
-  client.disconnect
   return status
 end
 
@@ -58,7 +65,7 @@ def looper
         truncated_string = truncate(str, s_idx, e_idx)
         s.puts truncated_string
 
-        if e_idx < truncated_string.length + (WIDTH*2)
+        if e_idx <= truncated_string.length + WIDTH*2
           s_idx += JUMP
           e_idx += JUMP
         else
@@ -68,8 +75,9 @@ def looper
       end
 
     end
-  rescue
-     sleep 1
+  rescue Exception => e
+    p e
+    sleep 1
   ensure
     FileUtils.rm '/tmp/music.sock'
   end
